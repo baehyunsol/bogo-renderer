@@ -51,7 +51,11 @@ impl Point {
     }
 
     pub fn normalize(&self) -> Point {
-        self.mul(1.0 / self.get_norm())
+        self.set_size(1.0)
+    }
+
+    pub fn set_size(&self, size: f64) -> Point {
+        self.mul(size / self.get_norm())
     }
 
     pub fn is_zero(&self) -> bool {

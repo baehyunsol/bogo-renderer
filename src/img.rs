@@ -4,7 +4,7 @@ use image::ImageBuffer;
 
 
 pub struct Buffer {
-    buffer: Vec<Vec<Color>>,
+    pub buffer: Vec<Vec<Color>>,
     resolution: usize
 }
 
@@ -22,7 +22,6 @@ impl Buffer {
         self.buffer[y][x] = color;
     }
 
-    // `self` is black/white pixel buffer
     pub fn glow(&self, size: i32) -> Buffer {
 
         let mut result = Buffer::new(self.resolution);
@@ -104,6 +103,32 @@ impl Buffer {
         result
     }
 
+    pub fn contrast(&self, po: usize) -> Buffer {
+
+        let po = po as f64;
+        let mut result = Buffer::new(self.resolution);
+
+        for x in 1..self.resolution {
+
+            for y in 1..self.resolution {
+
+                if (self.buffer[y][x - 1].sum() - self.buffer[y][x].sum()).abs() > po {
+                    result.draw_pixel(x, y, self.buffer[y][x].clone());
+                    result.draw_pixel(x - 1, y, self.buffer[y][x - 1].clone());
+                }
+
+                if (self.buffer[y - 1][x].sum() - self.buffer[y][x].sum()).abs() > po {
+                    result.draw_pixel(x, y, self.buffer[y][x].clone());
+                    result.draw_pixel(x, y - 1, self.buffer[y - 1][x].clone());
+                }
+
+            }
+
+        }
+
+        result
+    }
+
     pub fn add(&self, other: &Buffer) -> Buffer {
 
         assert_eq!(self.resolution, other.resolution);
@@ -135,6 +160,25 @@ impl Buffer {
         }
 
         into.save(save_as)
+    }
+
+    pub fn noise() -> Buffer {
+
+        let mut result = Buffer::new(625);
+
+        for x in 0..25 {
+            for y in 0..25 {
+                let curr_c = rand::random::<u8>();
+                let cc = Color::new(curr_c, curr_c, curr_c);
+                for xx in 0..25 {
+                    for yy in 0..25 {
+                        result.draw_pixel(x * 25 + xx, y * 25 + yy, cc.clone())
+                    }
+                }
+            }
+        }
+
+        result.blur(12)
     }
 
 }

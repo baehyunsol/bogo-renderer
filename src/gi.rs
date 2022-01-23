@@ -1,43 +1,46 @@
-use crate::light::Light;
+use crate::point::Point;
 use crate::object::Object;
-use crate::shape::sphere::get_sphere_vertices;
+use crate::light::Light;
 use crate::ray::shoot_ray;
-use crate::shape::Distance;
-use crate::render::get_light_power_at;
+use crate::render::get_color_by_light_source;
+use crate::color::Color;
+use crate::shape::{NormVec, Distance};
 use std::sync::Arc;
 
 
-pub fn map_photons(lights: &Vec<Light>, objects: &Vec<Arc<Object>>, density: usize) -> Vec<Light> {
+pub fn gi(pos: &Point, object: Arc<Object>, directions: &Vec<Point>, objects: &Vec<Arc<Object>>, lights: &Vec<Light>) -> Color {
 
-    let directions = get_sphere_vertices(density);
-    let power_coeff = 5000.0 / directions.len() as f64;
-    let mut result = Vec::with_capacity(lights.len() * directions.len());
+    let norm_vec = object.get_normal_vector_at(pos).normalize();
+    let directions = directions.iter().filter(|dir| norm_vec.inner_product(dir) > 0.0).map(|dir| dir.clone()).collect::<Vec<Point>>();
+    let directions_len = directions.len() / 2;
 
-    for lt in lights.iter() {
+    let colors = directions.iter().filter_map(
+        |dir| match shoot_ray(&pos, dir, objects, 300.0) {
+            None => None,
+            Some((collision_obj, collision_pos)) => {
+                let collision_dist = collision_pos.get_dist(pos);
 
-        for dir in directions.iter() {
+                if collision_dist < 0.1 {
+                    None  // should not collide to itself
+                } 
 
-            match shoot_ray(&lt.pos, dir, objects, 900.0) {
-                None => {},
-                Some((obj, p)) => {
+                else {
+                    let collision_color = get_color_by_light_source(&collision_pos, &collision_obj, objects, lights);
+                    let collision_cos = norm_vec.inner_product(&pos.sub(&collision_pos).normalize()).abs();
 
-                    // when photons bounce off multiple times, they should not bounce at the same point multiple times.
-                    if lt.pos.get_dist(&p) < 0.1 {
-                        continue;
-                    }
-
-                    let power = get_light_power_at(&p, &obj, lt) * power_coeff;
-
-                    if power * directions.len() as f64 > 28.0 {
-                        result.push(Light::new(p, power, 1.0));
-                    }
-
+                    Some(collision_color.into_f64().mul(collision_cos / collision_dist / collision_dist / directions_len as f64))
                 }
+
             }
 
         }
+    );
 
+    let mut result = Color::new(0, 0, 0).into_f64();
+
+    for cl in colors {
+        result = result.add(&cl);
     }
 
-    result
+    result.into_u8()
 }

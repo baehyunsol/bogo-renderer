@@ -14,8 +14,7 @@ pub struct RenderOption {
     pub render_lights: bool,
     pub blur_image: usize,
     pub resolution: usize,
-    pub global_illumination_iteration: usize,
-    pub global_illumination_density: usize
+    pub global_illumination: bool
 }
 
 impl Default for RenderOption {
@@ -34,8 +33,7 @@ impl RenderOption {
             glow: 0,
             render_lights: true,
             blur_image: 0,
-            global_illumination_iteration: 0,
-            global_illumination_density: 0,
+            global_illumination: false
         }
     }
 
@@ -54,8 +52,7 @@ impl RenderOption {
             glow: 16,
             render_lights: true,
             blur_image: 0,
-            global_illumination_iteration: 1,
-            global_illumination_density: 12,
+            global_illumination: true
         }
     }
 
@@ -66,9 +63,13 @@ impl RenderOption {
             glow: 32,
             blur_image: 1,
             render_lights: true,
-            global_illumination_iteration: 2,
-            global_illumination_density: 24,
+            global_illumination: true
         }
+    }
+
+    pub fn set_soft_shadow(&mut self, soft_shadow: usize) -> &mut Self {
+        self.soft_shadow = soft_shadow;
+        self
     }
 
     pub fn show_lights(&mut self, show_lights: bool) -> &mut Self {
@@ -76,9 +77,8 @@ impl RenderOption {
         self
     }
 
-    pub fn no_global_illumination(&mut self) -> &mut Self {
-        self.global_illumination_density = 0;
-        self.global_illumination_iteration = 0;
+    pub fn set_global_illumination(&mut self, gi: bool) -> &mut Self {
+        self.global_illumination = gi;
         self
     }
 
@@ -122,6 +122,7 @@ pub fn get_color_by_light_source(pos: &Point, object: &Arc<Object>, objects: &Ve
 // this function does not check visibility!
 pub fn get_light_power_at(pos: &Point, object: &Object, light: &Light) -> f64 {
     let cos = object.get_normal_vector_at(pos).normalize().inner_product(&light.pos.sub(pos).normalize()).abs();
+
     let dist = pos.get_dist(&light.pos);
 
     light.power * cos / dist / dist

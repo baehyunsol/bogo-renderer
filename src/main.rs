@@ -7,7 +7,7 @@ mod light;
 mod scene;
 mod render;
 mod img;
-mod gi;
+//mod gi;
 mod ray;
 mod misc;
 
@@ -30,13 +30,54 @@ fn main() {
         scene5(),
     ];
 
-    let render_option = render::RenderOption::ultra();
+    let render_option = render::RenderOption::low().set_blur(1).set_glow(8).set_resolution(512).to_owned();
+
+    scene6().render(render_option).save("test.png").unwrap();panic!();
 
     for (ind, mut sc) in scenes.into_iter().enumerate() {
         let image = sc.render(render_option);
-        image.save(&format!("scene{}.png", ind)).unwrap();
+        image.save(&format!("tt_scene{}.png", ind)).unwrap();
     }
 
+}
+
+
+fn scene6() -> Scene {
+
+    let mut result = Scene::new();
+    let noise = img::Buffer::noise();
+
+    for x in 50..100 {
+        break;
+        for y in 50..100 {
+            let height = (noise.buffer[y * 2][x * 2].r as f64 - 96.0) * 0.1 - 24.0;
+
+            if height < -24.0 {
+                continue;
+            }
+
+            result.push_object(
+                Object::new_capsule(
+                    LineSeg::new(
+                        Point::new(64.0 + (x as f64 - 75.0) * 1.2, 0.0 + (y as f64 - 75.0) * 1.2, -240.0),
+                        Point::new(64.0 + (x as f64 - 75.0) * 1.2, 0.0 + (y as f64 - 75.0) * 1.2, height),
+                    ),
+                    0.6,
+                    Color::new(64, 192, 64)
+                )
+            );
+        }
+    }
+
+    result.push_object(
+        Object::new_plane(0.0, 0.0, 1.0, 24.0, Color::new(64, 64, 192))
+    );
+
+    result.lights.push(
+        Light::new(Point::new(96.0, 0.0, 32.0), 10000.0, 4.0)
+    );
+
+    result
 }
 
 

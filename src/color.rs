@@ -47,4 +47,12 @@ impl Color {
         Color::new(255, 255, 255)
     }
 
+    pub fn into_8bit(&self) -> Color {
+        Color::new(
+            self.r / 32 * 32,
+            self.g / 32 * 32,
+            self.b / 64 * 64,
+        )
+    }
+
 }

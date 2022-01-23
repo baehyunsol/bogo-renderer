@@ -5,7 +5,6 @@ use crate::render::{RenderOption, get_color_by_light_source};
 use crate::light::Light;
 use crate::ray::{Collision, shoot_ray};
 use crate::img::Buffer;
-use crate::gi::map_photons;
 use rayon::prelude::*;
 use std::sync::Arc;
 
@@ -33,11 +32,10 @@ impl Scene {
         self
     }
 
-    pub fn render(&mut self, mut option: RenderOption) -> Buffer {
+    pub fn render(&mut self, option: RenderOption) -> Buffer {
 
-        if option.global_illumination_density > 0 || option.global_illumination_iteration > 0 {
-            println!("Global Illumination is not implemented yet!");
-            option.no_global_illumination();
+        if option.global_illumination {
+            println!("Global Illumination is not available yet!");
         }
 
         let mut objects = if option.render_lights {
@@ -66,39 +64,14 @@ impl Scene {
             self.lights.clone()
         };
 
-        let mut lights_for_global_illumination = vec![];
-        let mut lights_for_global_illumination_iteration = self.lights.clone();
-
-        for i in 0..option.global_illumination_iteration {
-            lights_for_global_illumination_iteration = map_photons(&lights_for_global_illumination_iteration, &objects, option.global_illumination_density);
-
-            lights_for_global_illumination = vec![
-                lights_for_global_illumination,
-                lights_for_global_illumination_iteration.clone()
-            ].concat();
-
-            println!("Global illumination iteration: {}\n{} Photons so far", i, lights_for_global_illumination.len());
-        }
-
-        let lights = vec![
-            lights_for_soft_shadows,
-            lights_for_global_illumination
-        ].concat();
-
         println!("Calculating colors...");
-        let colors_and_distances = collisions_with_objects.par_iter().map(
-            |coll|
-            match coll {
+        let colors = collisions_with_objects.par_iter().map(
+            |coll| match coll {
                 None => None,
-                Some((obj, pos)) => {
-                    let color = get_color_by_light_source(pos, obj, &objects, &lights);
-
-                    Some(color)
-                }
+                Some((obj, pos)) => Some(get_color_by_light_source(pos, obj, &objects, &lights_for_soft_shadows))
             }
         ).collect::<Vec<Option<Color>>>();
 
-        println!("Postprocessing the image...");
         let mut image_buffer = Buffer::new(resolution);
         let mut bright_buffer = Buffer::new(resolution);
 
@@ -106,7 +79,7 @@ impl Scene {
 
             for y in 0..resolution {
 
-                match &colors_and_distances[y * resolution + x] {
+                match &colors[y * resolution + x] {
                     None => {}
                     Some(color) => {
 
@@ -125,6 +98,8 @@ impl Scene {
             }
 
         }
+
+        println!("Postprocessing the image...");
 
         if option.glow > 0 {
             bright_buffer = bright_buffer.glow(option.glow as i32);
